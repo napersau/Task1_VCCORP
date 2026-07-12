@@ -13,7 +13,7 @@ API trả về JSON để frontend có thể hiển thị trực tiếp.
 
 ## Công Nghệ Sử Dụng
 
-- Java 21
+- Java 17
 - Spring Boot 3.3.x
 - Spring Web
 - Spring Data JPA
@@ -67,7 +67,7 @@ Response trả về từ API được chuẩn hóa theo đúng bộ trường tr
 
 ## Chạy Dự Án
 
-Cần có Java 21 và Maven.
+Cần có Java 17 và Maven.
 
 ```powershell
 cd task1
@@ -149,6 +149,26 @@ Response mẫu:
 ```
 
 Nếu không tìm thấy dữ liệu, API trả về HTTP `404` với body lỗi theo format `ErrorResponse`.
+
+Nếu `goldType` không hợp lệ, API trả về HTTP `400` với body lỗi theo format `ErrorResponse`:
+
+```json
+{
+  "error": "BAD_REQUEST",
+  "message": "Du lieu dau vao khong hop le",
+  "timestamp": "2026-07-12T10:00:00Z"
+}
+```
+
+Nếu không tìm thấy dữ liệu theo loại vàng, API trả về HTTP `404` với body lỗi theo format `ErrorResponse`:
+
+```json
+{
+  "error": "NOT_FOUND",
+  "message": "Khong tim thay du lieu gia vang cho loai: ABC",
+  "timestamp": "2026-07-12T10:00:00Z"
+}
+```
 
 ## Cấu Hình
 

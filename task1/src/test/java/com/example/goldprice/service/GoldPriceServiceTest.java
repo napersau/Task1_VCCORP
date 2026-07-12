@@ -26,7 +26,7 @@ class GoldPriceServiceTest {
 
     @Test
     void getGoldPricesByTypeIsCaseInsensitive() {
-        var prices = goldPriceService.getGoldPricesByType("sjc");
+        var prices = goldPriceService.getGoldPricesByType("  sjc  ");
 
         assertThat(prices).hasSize(1);
         assertThat(prices).allMatch(price -> price.goldType().equals("SJC"));

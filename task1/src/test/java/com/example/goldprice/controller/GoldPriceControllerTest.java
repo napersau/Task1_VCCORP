@@ -45,4 +45,12 @@ class GoldPriceControllerTest {
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.error").value("NOT_FOUND"));
     }
+
+    @Test
+    void getGoldPricesByInvalidTypeReturnsBadRequest() throws Exception {
+        mockMvc.perform(get("/api/gold-prices/sjc!"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error").value("BAD_REQUEST"))
+                .andExpect(jsonPath("$.message").value("Du lieu dau vao khong hop le"));
+    }
 }
