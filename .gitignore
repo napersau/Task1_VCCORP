@@ -1,0 +1,6 @@
+task1/target/
+task1/data/
+*.log
+.idea/
+.vscode/
+*.iml

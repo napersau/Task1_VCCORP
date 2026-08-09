@@ -10,26 +10,37 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "gold_prices")
+@Table(name = "gold_price")
 public class GoldPrice {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false)
+    @Column(name = "gold_type", nullable = false, length = 50)
     private String goldType;
 
-    @Column(nullable = false, precision = 15, scale = 0)
+    @Column(name = "buy_price", nullable = false, precision = 19, scale = 2)
     private BigDecimal buyPrice;
 
-    @Column(nullable = false, precision = 15, scale = 0)
+    @Column(name = "sell_price", nullable = false, precision = 19, scale = 2)
     private BigDecimal sellPrice;
 
-    @Column(nullable = false)
+    @Column(name = "updated_at", nullable = false)
     private LocalDateTime updatedAt;
 
     protected GoldPrice() {
+    }
+
+    public GoldPrice(String goldType, BigDecimal buyPrice, BigDecimal sellPrice) {
+        update(goldType, buyPrice, sellPrice);
+    }
+
+    public void update(String goldType, BigDecimal buyPrice, BigDecimal sellPrice) {
+        this.goldType = goldType;
+        this.buyPrice = buyPrice;
+        this.sellPrice = sellPrice;
+        this.updatedAt = LocalDateTime.now();
     }
 
     public Long getId() {

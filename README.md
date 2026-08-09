@@ -1,201 +1,100 @@
-# Gold Price API - Spring Boot Backend
+# Gold Price API
 
-Đây là backend mô phỏng nguồn tra cứu giá vàng cho website hiển thị. Dữ liệu hiện tại được seed sẵn vào H2 in-memory database và có thể thay bằng nguồn dữ liệu thật khi tích hợp sau này.
+REST API quản lý giá vàng được xây dựng bằng Java 17, Spring Boot, Spring Data JPA và HikariCP. Dữ liệu được lưu bền vững thay cho mock data; API hỗ trợ CRUD, tìm kiếm, phân trang và sắp xếp.
 
-## Tổng Quan
+## Công nghệ
 
-Ứng dụng cung cấp 2 endpoint chính:
+- Java 17, Spring Boot 3.3
+- Spring Web, Validation, Data JPA
+- H2 file (mặc định để chạy nhanh), MySQL hoặc PostgreSQL qua profile
+- HikariCP connection pool
+- JUnit 5, MockMvc, `@DataJpaTest`
 
-1. Lấy toàn bộ danh sách giá vàng hiện tại.
-2. Lấy lịch sử giá theo từng loại vàng.
+## Mô hình dữ liệu
 
-API trả về JSON để frontend có thể hiển thị trực tiếp.
+Bảng `gold_price` gồm:
 
-## Công Nghệ Sử Dụng
+| Cột | Kiểu dữ liệu | Mô tả |
+|---|---|---|
+| `id` | BIGINT | Khóa chính, tự tăng |
+| `gold_type` | VARCHAR(50) | Loại vàng |
+| `buy_price` | DECIMAL(19,2) | Giá mua |
+| `sell_price` | DECIMAL(19,2) | Giá bán |
+| `updated_at` | TIMESTAMP | Thời điểm tạo/cập nhật gần nhất |
 
-- Java 17
-- Spring Boot 3.3.x
-- Spring Web
-- Spring Data JPA
-- Spring Validation
-- H2 Database
-- Maven
-- JUnit 5
-- MockMvc
-
-## Cấu Trúc Project
-
-```text
-task1/
-  src/main/java/com/example/goldprice
-    GoldPriceApiApplication.java
-    config/WebConfig.java
-    controller/GoldPriceController.java
-    dto/ErrorResponse.java
-    dto/GoldPriceResponse.java
-    dto/HealthResponse.java
-    exception/GlobalExceptionHandler.java
-    exception/GoldPriceNotFoundException.java
-    mapper/GoldPriceMapper.java
-    model/GoldPrice.java
-    repository/GoldPriceRepository.java
-    service/GoldPriceService.java
-  src/main/resources
-    application.properties
-    data.sql
-  src/test/java/com/example/goldprice
-    controller/GoldPriceControllerTest.java
-    service/GoldPriceServiceTest.java
-```
-
-## Kiến Trúc Xử Lý
-
-Dữ liệu đi theo luồng:
-
-Nguồn giá vàng giả lập -> Service xử lý -> Repository đọc dữ liệu H2 -> Controller trả JSON cho client.
-
-## Model Dữ Liệu
-
-Model hiện tại gồm 4 trường chính:
-
-- `goldType`: loại vàng, ví dụ `SJC`, `9999`, `24K`
-- `buyPrice`: giá mua vào
-- `sellPrice`: giá bán ra
-- `updatedAt`: thời gian cập nhật
-
-Response trả về từ API được chuẩn hóa theo đúng bộ trường trên.
-
-## Chạy Dự Án
-
-Cần có Java 17 và Maven.
+## Chạy ứng dụng
 
 ```powershell
 cd task1
 mvn spring-boot:run
 ```
 
-Ứng dụng mặc định chạy tại:
+Mặc định dữ liệu được lưu tại `task1/data/gold-price.mv.db`. Để dùng MySQL:
 
-```text
-http://localhost:8080
+```powershell
+$env:SPRING_PROFILES_ACTIVE="mysql"
+$env:DB_URL="jdbc:mysql://localhost:3306/gold_price_db?useSSL=false&serverTimezone=Asia/Ho_Chi_Minh&allowPublicKeyRetrieval=true"
+$env:DB_USERNAME="root"
+$env:DB_PASSWORD="your-password"
+mvn spring-boot:run
 ```
 
-## API Endpoints
+Để dùng PostgreSQL, đổi profile thành `postgres` và đặt `DB_URL`, `DB_USERNAME`, `DB_PASSWORD` tương ứng. Các tham số HikariCP có thể chỉnh bằng `DB_POOL_MAX_SIZE`, `DB_POOL_MIN_IDLE`, `DB_CONNECTION_TIMEOUT`, `DB_IDLE_TIMEOUT`, `DB_MAX_LIFETIME`.
 
-### Health Check
+## API
 
-```http
-GET /api/gold-prices/health
-```
+Base URL: `http://localhost:8080/api/gold-prices`
 
-Response mẫu:
+| Method | Endpoint | Chức năng |
+|---|---|---|
+| GET | `/health` | Kiểm tra dịch vụ |
+| GET | `?goldType=SJC&page=0&size=10&sortBy=updatedAt&direction=desc` | Danh sách, tìm kiếm và phân trang |
+| GET | `/{id}` | Chi tiết theo ID |
+| POST | `/` | Thêm giá vàng |
+| PUT | `/{id}` | Cập nhật giá vàng |
+| DELETE | `/{id}` | Xóa giá vàng |
+
+Các trường `sortBy` hợp lệ: `id`, `goldType`, `buyPrice`, `sellPrice`, `updatedAt`. `size` từ 1 đến 100.
+
+Request dùng cho POST/PUT:
 
 ```json
 {
-  "status": "ok",
-  "service": "gold-price-api",
-  "checkedAt": "2026-07-05T08:00:00Z"
+  "goldType": "SJC",
+  "buyPrice": 80000000,
+  "sellPrice": 82000000
 }
 ```
 
-### Lấy Toàn Bộ Giá Vàng Hiện Tại
-
-```http
-GET /api/gold-prices
-```
-
-Response mẫu:
-
-```json
-[
-  {
-    "goldType": "14K",
-    "buyPrice": 45200000,
-    "sellPrice": 47200000,
-    "updatedAt": "2026-07-02T09:20:00"
-  },
-  {
-    "goldType": "18K",
-    "buyPrice": 58500000,
-    "sellPrice": 60500000,
-    "updatedAt": "2026-07-02T09:15:00"
-  }
-]
-```
-
-### Lấy Giá Vàng Theo Loại
-
-```http
-GET /api/gold-prices/{goldType}
-```
-
-Ví dụ:
-
-```http
-GET /api/gold-prices/SJC
-```
-
-Response mẫu:
-
-```json
-[
-  {
-    "goldType": "SJC",
-    "buyPrice": 80000000,
-    "sellPrice": 82000000,
-    "updatedAt": "2026-07-02T09:00:00"
-  }
-]
-```
-
-Nếu không tìm thấy dữ liệu, API trả về HTTP `404` với body lỗi theo format `ErrorResponse`.
-
-Nếu `goldType` không hợp lệ, API trả về HTTP `400` với body lỗi theo format `ErrorResponse`:
+Response phân trang:
 
 ```json
 {
-  "error": "BAD_REQUEST",
-  "message": "Du lieu dau vao khong hop le",
-  "timestamp": "2026-07-12T10:00:00Z"
+  "content": [
+    {
+      "id": 1,
+      "goldType": "SJC",
+      "buyPrice": 80000000,
+      "sellPrice": 82000000,
+      "updatedAt": "2026-08-09T15:00:00"
+    }
+  ],
+  "page": 0,
+  "size": 10,
+  "totalElements": 1,
+  "totalPages": 1,
+  "first": true,
+  "last": true
 }
 ```
 
-Nếu không tìm thấy dữ liệu theo loại vàng, API trả về HTTP `404` với body lỗi theo format `ErrorResponse`:
+POST trả `201 Created`; DELETE trả `204 No Content`; dữ liệu không tồn tại trả `404`; request không hợp lệ trả `400` theo cấu trúc `ErrorResponse` thống nhất.
 
-```json
-{
-  "error": "NOT_FOUND",
-  "message": "Khong tim thay du lieu gia vang cho loai: ABC",
-  "timestamp": "2026-07-12T10:00:00Z"
-}
-```
-
-## Cấu Hình
-
-- CORS được cấu hình trong `src/main/java/com/example/goldprice/config/WebConfig.java` để frontend có thể gọi API từ domain khác.
-- H2 in-memory database được cấu hình trong `src/main/resources/application.properties`.
-- Dữ liệu mẫu được nạp từ `src/main/resources/data.sql`.
-
-## Dữ Liệu Demo
-
-Dữ liệu demo hiện tại gồm các loại vàng: `SJC`, `9999`, `24K`, `18K`, `14K`.
-
-## Test
+## Kiểm thử
 
 ```powershell
 cd task1
 mvn test
 ```
 
-Bộ test bao gồm kiểm tra:
-
-- Lấy danh sách giá vàng
-- Lấy giá vàng theo loại
-- Trường hợp không tìm thấy dữ liệu
-
-## Mở Rộng Sau Này
-
-- Kết nối nguồn giá vàng thật thay cho seed data
-- Thêm cache nếu lượng request lớn
-- Thêm xác thực nếu API không public
-- Thêm logging và monitoring khi đưa lên production
+Bộ test bao phủ Repository với H2 in-memory, nghiệp vụ Service và các luồng CRUD/tìm kiếm/phân trang ở Controller.

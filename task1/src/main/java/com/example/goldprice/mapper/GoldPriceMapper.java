@@ -9,6 +9,7 @@ public class GoldPriceMapper {
 
     public GoldPriceResponse toResponse(GoldPrice price) {
         return new GoldPriceResponse(
+                price.getId(),
                 price.getGoldType(),
                 price.getBuyPrice(),
                 price.getSellPrice(),
