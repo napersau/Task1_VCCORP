@@ -25,6 +25,37 @@ spring:
   jackson:
     serialization:
       write-dates-as-timestamps: false
+  cache:
+    type: ${CACHE_TYPE:simple}
+    cache-names: goldPrices,goldPriceById
+    redis:
+      time-to-live: ${CACHE_TTL:10m}
+      cache-null-values: false
+      use-key-prefix: true
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+      timeout: ${REDIS_TIMEOUT:2s}
+      repositories:
+        enabled: false
+
+gold-price:
+  scheduler:
+    enabled: ${GOLD_PRICE_SCHEDULER_ENABLED:false}
+    source-url: ${GOLD_PRICE_SOURCE_URL:https://example.invalid/gold-prices}
+    api-key: ${GOLD_PRICE_SOURCE_API_KEY:}
+    cron: ${GOLD_PRICE_SCHEDULER_CRON:0 */5 * * * *}
+    zone: ${GOLD_PRICE_SCHEDULER_ZONE:Asia/Ho_Chi_Minh}
+    timeout: ${GOLD_PRICE_SOURCE_TIMEOUT:10s}
+
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+    operations-sorter: method
+  api-docs:
+    path: /v3/api-docs
 
 server:
   port: ${SERVER_PORT:8080}

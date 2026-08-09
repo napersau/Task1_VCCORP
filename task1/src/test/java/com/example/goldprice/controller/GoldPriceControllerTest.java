@@ -22,7 +22,8 @@ import org.springframework.test.web.servlet.MockMvc;
 @AutoConfigureMockMvc
 @TestPropertySource(properties = {
         "spring.datasource.url=jdbc:h2:mem:controller-test;MODE=MySQL;DATABASE_TO_UPPER=false",
-        "spring.jpa.hibernate.ddl-auto=create-drop"
+        "spring.jpa.hibernate.ddl-auto=create-drop",
+        "spring.cache.type=none"
 })
 class GoldPriceControllerTest {
 
@@ -68,5 +69,13 @@ class GoldPriceControllerTest {
 
         mockMvc.perform(get("/api/gold-prices").param("size", "101"))
                 .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void exposesOpenApiDocumentation() throws Exception {
+        mockMvc.perform(get("/v3/api-docs"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.info.title").value("Gold Price API"))
+                .andExpect(jsonPath("$.paths['/api/gold-prices']").exists());
     }
 }

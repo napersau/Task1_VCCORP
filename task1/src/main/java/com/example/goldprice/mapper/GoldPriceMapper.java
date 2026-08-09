@@ -2,18 +2,11 @@ package com.example.goldprice.mapper;
 
 import com.example.goldprice.dto.GoldPriceResponse;
 import com.example.goldprice.model.GoldPrice;
-import org.springframework.stereotype.Component;
+import org.mapstruct.Mapper;
+import org.mapstruct.MappingConstants;
 
-@Component
-public class GoldPriceMapper {
+@Mapper(componentModel = MappingConstants.ComponentModel.SPRING)
+public interface GoldPriceMapper {
 
-    public GoldPriceResponse toResponse(GoldPrice price) {
-        return new GoldPriceResponse(
-                price.getId(),
-                price.getGoldType(),
-                price.getBuyPrice(),
-                price.getSellPrice(),
-                price.getUpdatedAt()
-        );
-    }
+    GoldPriceResponse toResponse(GoldPrice price);
 }

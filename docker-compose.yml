@@ -1,0 +1,52 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: gold_price_db
+      POSTGRES_USER: gold_user
+      POSTGRES_PASSWORD: gold_password
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U gold_user -d gold_price_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  app:
+    build:
+      context: ./task1
+    ports:
+      - "8080:8080"
+    environment:
+      SPRING_PROFILES_ACTIVE: postgres
+      DB_URL: jdbc:postgresql://postgres:5432/gold_price_db
+      DB_USERNAME: gold_user
+      DB_PASSWORD: gold_password
+      CACHE_TYPE: redis
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      GOLD_PRICE_SCHEDULER_ENABLED: ${GOLD_PRICE_SCHEDULER_ENABLED:-false}
+      GOLD_PRICE_SOURCE_URL: ${GOLD_PRICE_SOURCE_URL:-https://example.invalid/gold-prices}
+      GOLD_PRICE_SOURCE_API_KEY: ${GOLD_PRICE_SOURCE_API_KEY:-}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+  redis_data:

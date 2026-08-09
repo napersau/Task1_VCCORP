@@ -5,6 +5,8 @@ import com.example.goldprice.dto.GoldPriceResponse;
 import com.example.goldprice.dto.HealthResponse;
 import com.example.goldprice.dto.PageResponse;
 import com.example.goldprice.service.GoldPriceService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
@@ -28,6 +30,7 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequestMapping("/api/gold-prices")
 @Validated
+@Tag(name = "Gold Prices", description = "Quản lý và tra cứu dữ liệu giá vàng")
 public class GoldPriceController {
 
     private final GoldPriceService goldPriceService;
@@ -37,11 +40,13 @@ public class GoldPriceController {
     }
 
     @GetMapping("/health")
+    @Operation(summary = "Kiểm tra trạng thái dịch vụ")
     public HealthResponse health() {
         return new HealthResponse("ok", "gold-price-api", Instant.now());
     }
 
     @GetMapping
+    @Operation(summary = "Tìm kiếm danh sách giá vàng có phân trang")
     public PageResponse<GoldPriceResponse> search(
             @RequestParam(required = false) String goldType,
             @RequestParam(defaultValue = "0") @Min(0) int page,
@@ -57,23 +62,27 @@ public class GoldPriceController {
     }
 
     @GetMapping("/{id}")
+    @Operation(summary = "Lấy chi tiết giá vàng theo ID")
     public GoldPriceResponse getById(@PathVariable @Min(1) Long id) {
         return goldPriceService.getById(id);
     }
 
     @PostMapping
+    @Operation(summary = "Thêm một bản ghi giá vàng")
     public ResponseEntity<GoldPriceResponse> create(@Valid @RequestBody GoldPriceRequest request) {
         GoldPriceResponse created = goldPriceService.create(request);
         return ResponseEntity.created(URI.create("/api/gold-prices/" + created.id())).body(created);
     }
 
     @PutMapping("/{id}")
+    @Operation(summary = "Cập nhật một bản ghi giá vàng")
     public GoldPriceResponse update(@PathVariable @Min(1) Long id,
                                     @Valid @RequestBody GoldPriceRequest request) {
         return goldPriceService.update(id, request);
     }
 
     @DeleteMapping("/{id}")
+    @Operation(summary = "Xóa một bản ghi giá vàng")
     public ResponseEntity<Void> delete(@PathVariable @Min(1) Long id) {
         goldPriceService.delete(id);
         return ResponseEntity.noContent().build();

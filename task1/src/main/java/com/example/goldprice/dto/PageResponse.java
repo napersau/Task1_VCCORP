@@ -1,5 +1,6 @@
 package com.example.goldprice.dto;
 
+import java.io.Serializable;
 import java.util.List;
 import org.springframework.data.domain.Page;
 
@@ -11,7 +12,7 @@ public record PageResponse<T>(
         int totalPages,
         boolean first,
         boolean last
-) {
+) implements Serializable {
     public static <T> PageResponse<T> from(Page<T> source) {
         return new PageResponse<>(source.getContent(), source.getNumber(), source.getSize(),
                 source.getTotalElements(), source.getTotalPages(), source.isFirst(), source.isLast());
