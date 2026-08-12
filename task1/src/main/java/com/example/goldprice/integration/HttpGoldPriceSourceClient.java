@@ -1,11 +1,14 @@
 package com.example.goldprice.integration;
 
+import com.example.goldprice.exception.GoldPriceSourceException;
+
 import java.time.Duration;
 import java.util.List;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.springframework.web.reactive.function.client.WebClient;
+import org.springframework.web.reactive.function.client.WebClientException;
 
 @Component
 @ConditionalOnProperty(name = "gold-price.scheduler.enabled", havingValue = "true")
@@ -30,12 +33,16 @@ public class HttpGoldPriceSourceClient implements GoldPriceSourceClient {
 
     @Override
     public List<GoldPriceFeedItem> fetchPrices() {
-        List<GoldPriceFeedItem> result = webClient.get()
-                .uri(sourceUrl)
-                .retrieve()
-                .bodyToFlux(GoldPriceFeedItem.class)
-                .collectList()
-                .block(timeout);
-        return result == null ? List.of() : result;
+        try {
+            List<GoldPriceFeedItem> result = webClient.get()
+                    .uri(sourceUrl)
+                    .retrieve()
+                    .bodyToFlux(GoldPriceFeedItem.class)
+                    .collectList()
+                    .block(timeout);
+            return result == null ? List.of() : result;
+        } catch (WebClientException | IllegalStateException exception) {
+            throw new GoldPriceSourceException("Không thể lấy dữ liệu từ nguồn giá vàng", exception);
+        }
     }
 }

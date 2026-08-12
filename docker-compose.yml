@@ -40,6 +40,10 @@ services:
       GOLD_PRICE_SCHEDULER_ENABLED: ${GOLD_PRICE_SCHEDULER_ENABLED:-false}
       GOLD_PRICE_SOURCE_URL: ${GOLD_PRICE_SOURCE_URL:-https://example.invalid/gold-prices}
       GOLD_PRICE_SOURCE_API_KEY: ${GOLD_PRICE_SOURCE_API_KEY:-}
+      LOG_PATH: /app/logs
+      APP_LOG_LEVEL: ${APP_LOG_LEVEL:-INFO}
+    volumes:
+      - app_logs:/app/logs
     depends_on:
       postgres:
         condition: service_healthy
@@ -50,3 +54,4 @@ services:
 volumes:
   postgres_data:
   redis_data:
+  app_logs:

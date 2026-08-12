@@ -43,6 +43,14 @@ class GoldPriceSynchronizationServiceTest {
                 .extracting(GoldPrice::getGoldType).isEqualTo("SJC");
     }
 
+    @Test
+    void acceptsNullOrEmptySourceWithoutCallingDatabase() {
+        var service = new GoldPriceSynchronizationService(repository);
+
+        assertThat(service.saveNewPrices(null)).isZero();
+        assertThat(service.saveNewPrices(List.of())).isZero();
+    }
+
     private GoldPriceFeedItem item(String type, String buy, String sell) {
         return new GoldPriceFeedItem(type, new BigDecimal(buy), new BigDecimal(sell));
     }

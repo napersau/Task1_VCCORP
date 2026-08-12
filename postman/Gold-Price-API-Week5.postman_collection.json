@@ -1,0 +1,103 @@
+{
+  "info": {
+    "_postman_id": "998f6055-0827-48fa-b69a-7ae8dc4718ce",
+    "name": "Gold Price API - Week 5",
+    "description": "CRUD, phân trang và các kịch bản kiểm tra Global Exception Handling.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:8080" },
+    { "key": "goldPriceId", "value": "1" }
+  ],
+  "item": [
+    {
+      "name": "Happy path",
+      "item": [
+        {
+          "name": "Create gold price",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"goldType\": \"SJC\",\n  \"buyPrice\": 80000000,\n  \"sellPrice\": 82000000\n}" },
+            "url": "{{baseUrl}}/api/gold-prices"
+          },
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Created', () => pm.response.to.have.status(201));",
+            "pm.test('Has request ID', () => pm.expect(pm.response.headers.get('X-Request-ID')).to.exist);",
+            "if (pm.response.code === 201) pm.collectionVariables.set('goldPriceId', pm.response.json().id);"
+          ] } }]
+        },
+        {
+          "name": "Search with pagination",
+          "request": { "method": "GET", "url": "{{baseUrl}}/api/gold-prices?goldType=SJC&page=0&size=10&sortBy=updatedAt&direction=desc" },
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('OK', () => pm.response.to.have.status(200));",
+            "pm.test('Page contract', () => { const b = pm.response.json(); pm.expect(b).to.have.keys('content','page','size','totalElements','totalPages','first','last'); });"
+          ] } }]
+        },
+        {
+          "name": "Get by ID",
+          "request": { "method": "GET", "url": "{{baseUrl}}/api/gold-prices/{{goldPriceId}}" },
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('OK', () => pm.response.to.have.status(200));"] } }]
+        }
+      ]
+    },
+    {
+      "name": "Error handling",
+      "item": [
+        {
+          "name": "Invalid request body",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"goldType\": \"\",\n  \"buyPrice\": 100,\n  \"sellPrice\": 90\n}" },
+            "url": "{{baseUrl}}/api/gold-prices"
+          },
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Validation returns 400', () => pm.response.to.have.status(400));",
+            "pm.test('Standard error contract', () => { const b = pm.response.json(); pm.expect(b.error).to.eql('VALIDATION_ERROR'); pm.expect(b.status).to.eql(400); pm.expect(b.path).to.eql('/api/gold-prices'); pm.expect(b.requestId).to.exist; pm.expect(b.fieldErrors.goldType).to.exist; });"
+          ] } }]
+        },
+        {
+          "name": "Malformed JSON",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{not-json}" },
+            "url": "{{baseUrl}}/api/gold-prices"
+          },
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Malformed JSON returns 400', () => pm.response.to.have.status(400));",
+            "pm.test('Safe message', () => pm.expect(pm.response.json().error).to.eql('MALFORMED_JSON'));"
+          ] } }]
+        },
+        {
+          "name": "Invalid path ID type",
+          "request": { "method": "GET", "url": "{{baseUrl}}/api/gold-prices/not-a-number" },
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Type mismatch returns 400', () => pm.response.to.have.status(400));",
+            "pm.test('Error code', () => pm.expect(pm.response.json().error).to.eql('INVALID_PARAMETER'));"
+          ] } }]
+        },
+        {
+          "name": "Invalid page size",
+          "request": { "method": "GET", "url": "{{baseUrl}}/api/gold-prices?size=101" },
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('Constraint returns 400', () => pm.response.to.have.status(400));"] } }]
+        },
+        {
+          "name": "Record not found",
+          "request": { "method": "GET", "url": "{{baseUrl}}/api/gold-prices/999999999" },
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Missing record returns 404', () => pm.response.to.have.status(404));",
+            "pm.test('Data not found code', () => pm.expect(pm.response.json().error).to.eql('DATA_NOT_FOUND'));"
+          ] } }]
+        },
+        {
+          "name": "Endpoint not found",
+          "request": { "method": "GET", "url": "{{baseUrl}}/api/does-not-exist" },
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('Unknown endpoint returns 404', () => pm.response.to.have.status(404));"] } }]
+        }
+      ]
+    }
+  ]
+}

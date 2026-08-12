@@ -1,6 +1,7 @@
 task1/target/
 task1/data/
 *.log
+task1/logs/
 .idea/
 .vscode/
 *.iml

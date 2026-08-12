@@ -63,12 +63,55 @@ class GoldPriceControllerTest {
     @Test
     void rejectsInvalidRequestAndPageSize() throws Exception {
         mockMvc.perform(post("/api/gold-prices").contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"goldType\":\"\",\"buyPrice\":100,\"sellPrice\":90}"))
+                .content("{\"goldType\":\"\",\"buyPrice\":100,\"sellPrice\":90}"))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.error").value("BAD_REQUEST"));
+                .andExpect(jsonPath("$.status").value(400))
+                .andExpect(jsonPath("$.error").value("VALIDATION_ERROR"))
+                .andExpect(jsonPath("$.fieldErrors.goldType").exists())
+                .andExpect(jsonPath("$.path").value("/api/gold-prices"))
+                .andExpect(jsonPath("$.requestId").isNotEmpty())
+                .andExpect(header().exists("X-Request-ID"));
 
         mockMvc.perform(get("/api/gold-prices").param("size", "101"))
                 .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void handlesMalformedJsonTypeMismatchAndMissingEndpoint() throws Exception {
+        mockMvc.perform(post("/api/gold-prices").contentType(MediaType.APPLICATION_JSON)
+                        .content("{not-json}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error").value("MALFORMED_JSON"))
+                .andExpect(jsonPath("$.message").value("Nội dung JSON không hợp lệ"));
+
+        mockMvc.perform(get("/api/gold-prices/not-a-number"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error").value("INVALID_PARAMETER"))
+                .andExpect(jsonPath("$.message").value("Tham số 'id' không đúng kiểu dữ liệu"));
+
+        mockMvc.perform(get("/api/does-not-exist"))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.error").value("ENDPOINT_NOT_FOUND"));
+    }
+
+    @Test
+    void preservesValidClientRequestId() throws Exception {
+        mockMvc.perform(get("/api/gold-prices").header("X-Request-ID", "postman-week5-001"))
+                .andExpect(status().isOk())
+                .andExpect(header().string("X-Request-ID", "postman-week5-001"));
+    }
+
+    @Test
+    void handlesBusinessRuleAndUnsupportedContentType() throws Exception {
+        mockMvc.perform(post("/api/gold-prices").contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"goldType\":\"SJC\",\"buyPrice\":100,\"sellPrice\":90}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error").value("BUSINESS_RULE_VIOLATION"))
+                .andExpect(jsonPath("$.message").value("Giá bán phải lớn hơn hoặc bằng giá mua"));
+
+        mockMvc.perform(post("/api/gold-prices").contentType(MediaType.TEXT_PLAIN).content("invalid"))
+                .andExpect(status().isUnsupportedMediaType())
+                .andExpect(jsonPath("$.error").value("UNSUPPORTED_MEDIA_TYPE"));
     }
 
     @Test

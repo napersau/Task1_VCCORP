@@ -7,6 +7,8 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Caching;
 import org.springframework.stereotype.Service;
@@ -14,6 +16,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class GoldPriceSynchronizationService {
+
+    private static final Logger log = LoggerFactory.getLogger(GoldPriceSynchronizationService.class);
 
     private final GoldPriceRepository repository;
 
@@ -27,6 +31,11 @@ public class GoldPriceSynchronizationService {
             @CacheEvict(cacheNames = "goldPriceById", allEntries = true, condition = "#result > 0")
     })
     public int saveNewPrices(List<GoldPriceFeedItem> sourceItems) {
+        if (sourceItems == null || sourceItems.isEmpty()) {
+            log.info("No gold prices received from source");
+            return 0;
+        }
+        // Normalize type and numeric scale first so duplicates in different source formats share one key.
         Map<String, GoldPriceFeedItem> uniqueItems = new LinkedHashMap<>();
         sourceItems.stream().filter(this::isValid).forEach(item -> {
             String type = item.goldType().trim().toUpperCase(Locale.ROOT);
@@ -40,6 +49,8 @@ public class GoldPriceSynchronizationService {
                 .map(item -> new GoldPrice(item.goldType(), item.buyPrice(), item.sellPrice()))
                 .toList();
         repository.saveAll(newPrices);
+        log.info("Gold prices processed: received={}, validUnique={}, inserted={}, ignored={}",
+                sourceItems.size(), uniqueItems.size(), newPrices.size(), sourceItems.size() - newPrices.size());
         return newPrices.size();
     }
 

@@ -103,6 +103,41 @@ mvn test
 
 Bộ test bao phủ Repository với H2 in-memory, unit test Service bằng Mockito, đồng bộ dữ liệu, Scheduler và các luồng CRUD/tìm kiếm/phân trang/OpenAPI ở Controller.
 
+## Xử lý lỗi và logging
+
+Mọi lỗi REST được chuẩn hóa qua `GlobalExceptionHandler`. Response lỗi gồm `status`, `error`, `message`, `path`, `requestId`, `timestamp` và `fieldErrors` khi có lỗi validation. Thông điệp từ exception hạ tầng không được trả trực tiếp cho client.
+
+```json
+{
+  "status": 400,
+  "error": "VALIDATION_ERROR",
+  "message": "Dữ liệu đầu vào không hợp lệ",
+  "path": "/api/gold-prices",
+  "requestId": "97272c19-3fc1-480b-a47c-c540ce794133",
+  "timestamp": "2026-08-12T09:00:00Z",
+  "fieldErrors": {
+    "goldType": "Loại vàng không được để trống"
+  }
+}
+```
+
+Header `X-Request-ID` được nhận từ client nếu hợp lệ hoặc tự sinh, trả lại trong response và đưa vào MDC để đối chiếu request với log. Log được ghi ra console và `task1/logs/gold-price-api.log`, xoay theo ngày hoặc mỗi 10 MB, giữ tối đa 14 ngày. Có thể cấu hình bằng `LOG_PATH`, `APP_LOG_LEVEL`, `ROOT_LOG_LEVEL`.
+
+Mã lỗi tiêu biểu:
+
+| HTTP | Mã lỗi | Trường hợp |
+|---|---|---|
+| 400 | `VALIDATION_ERROR` | DTO hoặc tham số không đạt validation |
+| 400 | `MALFORMED_JSON` | JSON không đọc được |
+| 400 | `INVALID_PARAMETER` | Sai kiểu tham số |
+| 404 | `DATA_NOT_FOUND` | Không tồn tại bản ghi |
+| 404 | `ENDPOINT_NOT_FOUND` | Không tồn tại endpoint |
+| 503 | `DATABASE_UNAVAILABLE` | Lỗi truy cập database |
+| 503 | `CACHE_UNAVAILABLE` | Lỗi kết nối Redis |
+| 500 | `INTERNAL_SERVER_ERROR` | Lỗi chưa được dự kiến |
+
+Postman Collection tuần 5 nằm tại `postman/Gold-Price-API-Week5.postman_collection.json`, bao gồm luồng thành công và các test script cho validation, malformed JSON, sai kiểu ID, giới hạn phân trang và 404.
+
 ## Đồng bộ giá vàng tự động
 
 Scheduler mặc định tắt để ứng dụng không gọi nhầm một nguồn chưa được cấu hình. Bật bằng biến môi trường:
