@@ -1,111 +1,148 @@
 # Gold Price API
 
-REST API quản lý giá vàng được xây dựng bằng Java 17 và Spring Boot. Dữ liệu được lưu bền vững thay cho mock data; API hỗ trợ CRUD, tìm kiếm, phân trang, Redis cache và đồng bộ tự động từ nguồn HTTP.
+Backend quản lý và tra cứu giá vàng bằng Java 17/Spring Boot. Dự án hỗ trợ CRUD, tìm kiếm và phân trang, đồng bộ dữ liệu định kỳ, Redis Cache, Swagger/OpenAPI, logging tập trung và đóng gói Docker.
 
-## Công nghệ
+## 1. Tính năng
 
-- Java 17, Spring Boot 3.3
-- Spring Web, Validation, Data JPA
-- WebClient và Spring Scheduler
-- MapStruct cho Entity–DTO mapping
-- Spring Cache và Redis
-- Springdoc OpenAPI/Swagger UI
-- H2 file (mặc định để chạy nhanh), MySQL hoặc PostgreSQL qua profile
-- HikariCP connection pool
-- JUnit 5, MockMvc, `@DataJpaTest`
+- REST API CRUD theo chuẩn HTTP, validation và lỗi JSON thống nhất.
+- Spring Data JPA với H2 file, PostgreSQL hoặc MySQL.
+- Tìm kiếm theo loại vàng, phân trang và sắp xếp.
+- Scheduler/WebClient đồng bộ nguồn ngoài và loại dữ liệu trùng.
+- MapStruct tách Entity khỏi DTO trả cho client.
+- Redis Cache cho API đọc, tự xóa cache khi dữ liệu thay đổi.
+- Swagger UI, Postman Collection, request ID và Logback rolling file.
+- Unit test Mockito, Repository test và MockMvc integration test.
+- JAR thực thi độc lập, Dockerfile và Docker Compose.
 
-## Mô hình dữ liệu
+## 2. Yêu cầu môi trường
 
-Bảng `gold_price` gồm:
+Chọn một trong hai cách chạy:
 
-| Cột | Kiểu dữ liệu | Mô tả |
+| Cách chạy | Yêu cầu |
+|---|---|
+| Local tối giản | JDK 17, Maven 3.9+ |
+| Docker đầy đủ | Docker Desktop/Engine và Docker Compose v2 |
+
+Kiểm tra công cụ local:
+
+```powershell
+java -version
+mvn -version
+```
+
+## 3. Chạy nhanh sau khi clone
+
+### Local không cần cài Database/Redis
+
+```powershell
+git clone https://github.com/napersau/Task1_VCCORP.git
+cd Task1_VCCORP/task1
+mvn clean test
+mvn spring-boot:run
+```
+
+Chế độ mặc định sử dụng H2 file tại `task1/data/gold-price.mv.db`, cache in-memory và tắt Scheduler. Kiểm tra:
+
+- Health: `http://localhost:8080/api/gold-prices/health`
+- Swagger UI: `http://localhost:8080/swagger-ui.html`
+- OpenAPI JSON: `http://localhost:8080/v3/api-docs`
+
+### Docker với PostgreSQL và Redis
+
+Tại thư mục gốc:
+
+```powershell
+Copy-Item .env.example .env
+docker compose up --build -d
+docker compose ps
+Invoke-RestMethod http://localhost:8080/api/gold-prices/health
+```
+
+Compose khởi chạy `app`, PostgreSQL và Redis. Dữ liệu/log được giữ trong named volumes. Dừng mà vẫn giữ dữ liệu:
+
+```powershell
+docker compose down
+```
+
+Chỉ dùng `docker compose down -v` khi thực sự muốn xóa toàn bộ dữ liệu và log trong volumes.
+
+## 4. Cấu hình
+
+Không commit mật khẩu hoặc API key thật. Sao chép [.env.example](.env.example) thành `.env` hoặc đặt biến môi trường trực tiếp.
+
+| Biến | Mặc định | Ý nghĩa |
 |---|---|---|
-| `id` | BIGINT | Khóa chính, tự tăng |
-| `gold_type` | VARCHAR(50) | Loại vàng |
-| `buy_price` | DECIMAL(19,2) | Giá mua |
-| `sell_price` | DECIMAL(19,2) | Giá bán |
-| `updated_at` | TIMESTAMP | Thời điểm tạo/cập nhật gần nhất |
+| `SERVER_PORT` | `8080` | Cổng HTTP |
+| `SPRING_PROFILES_ACTIVE` | trống | `postgres` hoặc `mysql` |
+| `DB_URL` | H2 file | JDBC URL |
+| `DB_USERNAME`, `DB_PASSWORD` | `sa`, trống | Tài khoản DB |
+| `CACHE_TYPE` | `simple` | `simple`, `redis` hoặc `none` |
+| `REDIS_HOST`, `REDIS_PORT` | `localhost`, `6379` | Redis endpoint |
+| `CACHE_TTL` | `10m` | Thời gian sống cache |
+| `GOLD_PRICE_SCHEDULER_ENABLED` | `false` | Bật job đồng bộ |
+| `GOLD_PRICE_SOURCE_URL` | URL vô hiệu | API nguồn giá vàng |
+| `GOLD_PRICE_SOURCE_API_KEY` | trống | API key tùy chọn |
+| `GOLD_PRICE_SCHEDULER_CRON` | mỗi 5 phút | Cron 6 trường của Spring |
+| `GOLD_PRICE_SCHEDULER_ZONE` | `Asia/Ho_Chi_Minh` | Múi giờ Scheduler |
+| `LOG_PATH` | `logs` | Thư mục log |
+| `APP_LOG_LEVEL` | `INFO` | Mức log ứng dụng |
 
-## Chạy ứng dụng
+Ví dụ chạy local với PostgreSQL/Redis:
 
 ```powershell
-cd task1
-mvn spring-boot:run
-```
-
-Mặc định dữ liệu được lưu tại `task1/data/gold-price.mv.db`. Để dùng MySQL:
-
-```powershell
-$env:SPRING_PROFILES_ACTIVE="mysql"
-$env:DB_URL="jdbc:mysql://localhost:3306/gold_price_db?useSSL=false&serverTimezone=Asia/Ho_Chi_Minh&allowPublicKeyRetrieval=true"
-$env:DB_USERNAME="root"
+$env:SPRING_PROFILES_ACTIVE="postgres"
+$env:DB_URL="jdbc:postgresql://localhost:5432/gold_price_db"
+$env:DB_USERNAME="gold_user"
 $env:DB_PASSWORD="your-password"
+$env:CACHE_TYPE="redis"
+$env:REDIS_HOST="localhost"
 mvn spring-boot:run
 ```
 
-Để dùng PostgreSQL, đổi profile thành `postgres` và đặt `DB_URL`, `DB_USERNAME`, `DB_PASSWORD` tương ứng. Các tham số HikariCP có thể chỉnh bằng `DB_POOL_MAX_SIZE`, `DB_POOL_MIN_IDLE`, `DB_CONNECTION_TIMEOUT`, `DB_IDLE_TIMEOUT`, `DB_MAX_LIFETIME`.
+## 5. Đồng bộ giá vàng
 
-## API
+Scheduler chỉ nên bật sau khi cấu hình nguồn thật:
+
+```powershell
+$env:GOLD_PRICE_SCHEDULER_ENABLED="true"
+$env:GOLD_PRICE_SOURCE_URL="https://provider.example/api/gold-prices"
+$env:GOLD_PRICE_SOURCE_API_KEY="optional-key"
+```
+
+Nguồn trả về JSON array:
+
+```json
+[
+  { "goldType": "SJC", "buyPrice": 80000000, "sellPrice": 82000000 }
+]
+```
+
+Các alias `gold_type`/`type`/`name`, `buy_price`/`buy`, `sell_price`/`sell` cũng được hỗ trợ. Dữ liệu thiếu, giá âm, giá bán thấp hơn giá mua hoặc trùng loại vàng và mức giá sẽ bị bỏ qua. Một lần chạy lỗi không làm dừng các lần cron kế tiếp.
+
+## 6. API
 
 Base URL: `http://localhost:8080/api/gold-prices`
 
-| Method | Endpoint | Chức năng |
+| Method | Endpoint | Kết quả |
 |---|---|---|
-| GET | `/health` | Kiểm tra dịch vụ |
-| GET | `?goldType=SJC&page=0&size=10&sortBy=updatedAt&direction=desc` | Danh sách, tìm kiếm và phân trang |
+| GET | `/health` | Trạng thái dịch vụ |
+| GET | `?goldType=SJC&page=0&size=10&sortBy=updatedAt&direction=desc` | Tìm kiếm/phân trang |
 | GET | `/{id}` | Chi tiết theo ID |
-| POST | `/` | Thêm giá vàng |
-| PUT | `/{id}` | Cập nhật giá vàng |
-| DELETE | `/{id}` | Xóa giá vàng |
+| POST | `/` | Tạo mới, trả `201` |
+| PUT | `/{id}` | Cập nhật |
+| DELETE | `/{id}` | Xóa, trả `204` |
 
-Các trường `sortBy` hợp lệ: `id`, `goldType`, `buyPrice`, `sellPrice`, `updatedAt`. `size` từ 1 đến 100.
-
-Request dùng cho POST/PUT:
+POST/PUT body:
 
 ```json
-{
-  "goldType": "SJC",
-  "buyPrice": 80000000,
-  "sellPrice": 82000000
-}
+{ "goldType": "SJC", "buyPrice": 80000000, "sellPrice": 82000000 }
 ```
 
-Response phân trang:
+`size` nằm trong 1–100. `sortBy` nhận `id`, `goldType`, `buyPrice`, `sellPrice`, `updatedAt`; `direction` nhận `asc` hoặc `desc`.
 
-```json
-{
-  "content": [
-    {
-      "id": 1,
-      "goldType": "SJC",
-      "buyPrice": 80000000,
-      "sellPrice": 82000000,
-      "updatedAt": "2026-08-09T15:00:00"
-    }
-  ],
-  "page": 0,
-  "size": 10,
-  "totalElements": 1,
-  "totalPages": 1,
-  "first": true,
-  "last": true
-}
-```
+## 7. Lỗi và logging
 
-POST trả `201 Created`; DELETE trả `204 No Content`; dữ liệu không tồn tại trả `404`; request không hợp lệ trả `400` theo cấu trúc `ErrorResponse` thống nhất.
-
-## Kiểm thử
-
-```powershell
-cd task1
-mvn test
-```
-
-Bộ test bao phủ Repository với H2 in-memory, unit test Service bằng Mockito, đồng bộ dữ liệu, Scheduler và các luồng CRUD/tìm kiếm/phân trang/OpenAPI ở Controller.
-
-## Xử lý lỗi và logging
-
-Mọi lỗi REST được chuẩn hóa qua `GlobalExceptionHandler`. Response lỗi gồm `status`, `error`, `message`, `path`, `requestId`, `timestamp` và `fieldErrors` khi có lỗi validation. Thông điệp từ exception hạ tầng không được trả trực tiếp cho client.
+Lỗi trả về format an toàn và có `requestId`:
 
 ```json
 {
@@ -115,72 +152,65 @@ Mọi lỗi REST được chuẩn hóa qua `GlobalExceptionHandler`. Response l�
   "path": "/api/gold-prices",
   "requestId": "97272c19-3fc1-480b-a47c-c540ce794133",
   "timestamp": "2026-08-12T09:00:00Z",
-  "fieldErrors": {
-    "goldType": "Loại vàng không được để trống"
-  }
+  "fieldErrors": { "goldType": "Loại vàng không được để trống" }
 }
 ```
 
-Header `X-Request-ID` được nhận từ client nếu hợp lệ hoặc tự sinh, trả lại trong response và đưa vào MDC để đối chiếu request với log. Log được ghi ra console và `task1/logs/gold-price-api.log`, xoay theo ngày hoặc mỗi 10 MB, giữ tối đa 14 ngày. Có thể cấu hình bằng `LOG_PATH`, `APP_LOG_LEVEL`, `ROOT_LOG_LEVEL`.
+Client có thể gửi `X-Request-ID`; nếu thiếu, server tự sinh và trả lại trong header. Log được ghi ra console và `task1/logs/gold-price-api.log`, xoay mỗi ngày/10 MB và giữ 14 ngày. Scheduler ghi một log INFO lúc bắt đầu và một log kết quả lúc kết thúc; chi tiết xử lý nội bộ ở DEBUG để tránh log INFO trùng lặp.
 
-Mã lỗi tiêu biểu:
-
-| HTTP | Mã lỗi | Trường hợp |
-|---|---|---|
-| 400 | `VALIDATION_ERROR` | DTO hoặc tham số không đạt validation |
-| 400 | `MALFORMED_JSON` | JSON không đọc được |
-| 400 | `INVALID_PARAMETER` | Sai kiểu tham số |
-| 404 | `DATA_NOT_FOUND` | Không tồn tại bản ghi |
-| 404 | `ENDPOINT_NOT_FOUND` | Không tồn tại endpoint |
-| 503 | `DATABASE_UNAVAILABLE` | Lỗi truy cập database |
-| 503 | `CACHE_UNAVAILABLE` | Lỗi kết nối Redis |
-| 500 | `INTERNAL_SERVER_ERROR` | Lỗi chưa được dự kiến |
-
-Postman Collection tuần 5 nằm tại `postman/Gold-Price-API-Week5.postman_collection.json`, bao gồm luồng thành công và các test script cho validation, malformed JSON, sai kiểu ID, giới hạn phân trang và 404.
-
-## Đồng bộ giá vàng tự động
-
-Scheduler mặc định tắt để ứng dụng không gọi nhầm một nguồn chưa được cấu hình. Bật bằng biến môi trường:
+## 8. Test, đóng gói và chạy JAR
 
 ```powershell
-$env:GOLD_PRICE_SCHEDULER_ENABLED="true"
-$env:GOLD_PRICE_SOURCE_URL="https://your-provider.example/api/gold-prices"
-$env:GOLD_PRICE_SOURCE_API_KEY="optional-api-key"
-$env:GOLD_PRICE_SCHEDULER_CRON="0 */5 * * * *"
-mvn spring-boot:run
+cd task1
+mvn clean test
+mvn clean package
+java -jar target/gold-price-api-0.0.1-SNAPSHOT.jar
 ```
 
-Nguồn HTTP cần trả về một JSON array. Client chấp nhận cả tên trường camelCase và snake_case:
-
-```json
-[
-  {
-    "goldType": "SJC",
-    "buyPrice": 80000000,
-    "sellPrice": 82000000
-  }
-]
-```
-
-Các alias `gold_type`/`type`/`name`, `buy_price`/`buy`, `sell_price`/`sell` cũng được hỗ trợ. Bản ghi sai định dạng, giá bán thấp hơn giá mua hoặc trùng loại vàng và mức giá hiện có sẽ không được lưu. Cron mặc định chạy mỗi 5 phút theo múi giờ `Asia/Ho_Chi_Minh`.
-
-## Redis Cache
-
-Khi chạy cục bộ, cache dạng in-memory đơn giản được dùng để không bắt buộc cài Redis. Môi trường Docker đặt `CACHE_TYPE=redis`; hai cache `goldPrices` và `goldPriceById` có TTL mặc định 10 phút. POST, PUT, DELETE và lần đồng bộ có dữ liệu mới sẽ xóa cache liên quan.
-
-## Swagger/OpenAPI
-
-Sau khi chạy ứng dụng:
-
-- Swagger UI: `http://localhost:8080/swagger-ui.html`
-- OpenAPI JSON: `http://localhost:8080/v3/api-docs`
-
-## Docker Compose
-
-Khởi chạy đồng thời ứng dụng, PostgreSQL và Redis:
+Khi chạy JAR, thư mục làm việc quyết định vị trí `data/` và `logs/`. Có thể đổi bằng `DB_URL` và `LOG_PATH`. Smoke test từ terminal khác:
 
 ```powershell
-docker compose up --build
+Invoke-RestMethod http://localhost:8080/api/gold-prices/health
+Invoke-WebRequest http://localhost:8080/v3/api-docs -UseBasicParsing
 ```
 
-Muốn bật Scheduler trong Docker, thiết lập `GOLD_PRICE_SCHEDULER_ENABLED=true` và `GOLD_PRICE_SOURCE_URL` trước khi chạy lệnh trên. Dữ liệu PostgreSQL và Redis được giữ trong named volumes. Dừng hệ thống bằng `docker compose down`; chỉ thêm `-v` nếu thực sự muốn xóa dữ liệu.
+Hoặc chạy smoke test tự động; script dùng H2 in-memory, cổng `18086` và luôn dừng tiến trình JAR sau khi kiểm tra:
+
+```powershell
+cd ..
+powershell -ExecutionPolicy Bypass -File scripts/smoke-test-jar.ps1
+```
+
+## 9. Tài liệu bàn giao
+
+- [Kiến trúc hệ thống](docs/ARCHITECTURE.md)
+- [Tổng kết kỳ thực tập](docs/FINAL_INTERNSHIP_SUMMARY.md)
+- [Postman Collection](postman/Gold-Price-API-Week5.postman_collection.json)
+- Swagger UI: `/swagger-ui.html`
+
+## 10. Xử lý sự cố
+
+| Hiện tượng | Cách kiểm tra |
+|---|---|
+| Port 8080 đã dùng | Đặt `SERVER_PORT` sang cổng khác |
+| Không kết nối DB | Kiểm tra profile, JDBC URL, user/password và container health |
+| Redis lỗi | Kiểm tra `CACHE_TYPE`, host/port; local có thể dùng `CACHE_TYPE=simple` |
+| Scheduler không chạy | Kiểm tra cờ enabled, cron, URL nguồn và log ứng dụng |
+| Swagger không mở | Thử `/v3/api-docs`, kiểm tra port và application log |
+| Tiếng Việt trong PowerShell lỗi | Dùng terminal UTF-8; file source và response đều ở UTF-8 |
+
+## 11. Cấu trúc chính
+
+```text
+task1/src/main/java/com/example/goldprice
+├── config          # cache, scheduling, OpenAPI, request ID, CORS
+├── controller      # REST endpoints
+├── dto             # request/response contract
+├── exception       # exception và handler tập trung
+├── integration     # WebClient đọc nguồn ngoài
+├── mapper          # MapStruct
+├── model           # JPA entity
+├── repository      # Spring Data JPA
+├── scheduler       # cron job
+└── service         # nghiệp vụ và đồng bộ dữ liệu
+```

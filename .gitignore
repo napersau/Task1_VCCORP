@@ -5,3 +5,4 @@ task1/logs/
 .idea/
 .vscode/
 *.iml
+.env

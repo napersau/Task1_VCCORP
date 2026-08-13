@@ -32,7 +32,7 @@ public class GoldPriceSynchronizationService {
     })
     public int saveNewPrices(List<GoldPriceFeedItem> sourceItems) {
         if (sourceItems == null || sourceItems.isEmpty()) {
-            log.info("No gold prices received from source");
+            log.debug("No gold prices received from source");
             return 0;
         }
         // Normalize type and numeric scale first so duplicates in different source formats share one key.
@@ -49,7 +49,7 @@ public class GoldPriceSynchronizationService {
                 .map(item -> new GoldPrice(item.goldType(), item.buyPrice(), item.sellPrice()))
                 .toList();
         repository.saveAll(newPrices);
-        log.info("Gold prices processed: received={}, validUnique={}, inserted={}, ignored={}",
+        log.debug("Gold prices processed: received={}, validUnique={}, inserted={}, ignored={}",
                 sourceItems.size(), uniqueItems.size(), newPrices.size(), sourceItems.size() - newPrices.size());
         return newPrices.size();
     }

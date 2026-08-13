@@ -3,12 +3,12 @@ services:
     image: postgres:16-alpine
     environment:
       POSTGRES_DB: gold_price_db
-      POSTGRES_USER: gold_user
-      POSTGRES_PASSWORD: gold_password
+      POSTGRES_USER: ${POSTGRES_USER:-gold_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-gold_demo_password}
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U gold_user -d gold_price_db"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-gold_user} -d gold_price_db"]
       interval: 5s
       timeout: 5s
       retries: 10
@@ -28,12 +28,12 @@ services:
     build:
       context: ./task1
     ports:
-      - "8080:8080"
+      - "${SERVER_PORT:-8080}:8080"
     environment:
       SPRING_PROFILES_ACTIVE: postgres
       DB_URL: jdbc:postgresql://postgres:5432/gold_price_db
-      DB_USERNAME: gold_user
-      DB_PASSWORD: gold_password
+      DB_USERNAME: ${POSTGRES_USER:-gold_user}
+      DB_PASSWORD: ${POSTGRES_PASSWORD:-gold_demo_password}
       CACHE_TYPE: redis
       REDIS_HOST: redis
       REDIS_PORT: 6379
@@ -49,6 +49,12 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:8080/api/gold-prices/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
     restart: unless-stopped
 
 volumes:
